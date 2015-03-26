@@ -18,15 +18,16 @@ class IvonaClient
     public $outputFormatCodec = 'MP3';
     public $outputFormatSampleRate = '22050';
     public $parametersRate = 'slow';
-    public $voiceLanguage = 'en-GB';
-    public $voiceName = 'Amy';
+    public $voiceLanguage = 'pl-PL';
+    public $voiceName = 'Maja';
     public $xAmzAlgorithm = 'AWS4-HMAC-SHA256';
     public $xAmzSignedHeaders = 'host';
     public $xAmzDate;
     public $xAmzCredential;
     public $enableDebug = 1;
     public $useCache = 1;
-
+    //public $CacheDir = realpath(dirname(__FILE__));
+    public $CacheDir = '/var/opt/cache';
 
     public function __construct()
     {
@@ -81,7 +82,7 @@ class IvonaClient
 
     }
 
-    public function get($text)
+    public function get($text, $params = null)
     {
 
 	$payloadArray = (object)array();
@@ -90,12 +91,22 @@ class IvonaClient
 	
 	$payloadArray->OutputFormat["Codec"] = $this->outputFormatCodec; 
 	$payloadArray->OutputFormat["SampleRate"] = (int) $this->outputFormatSampleRate;
- 
-	$payloadArray->Voice["Name"] = $this->voiceName; 
-	$payloadArray->Voice["Language"] = $this->voiceLanguage;
 	
-	$payloadArray->Parameters["Rate"] = $this->parametersRate;
- 
+	if($params['Language']){ 
+		$payloadArray->Voice["Language"] = $params['Language'];
+	} else {
+		$payloadArray->Voice["Language"] = $this->voiceLanguage;
+	}
+	if($params['VoiceName']){ 
+		$payloadArray->Voice["Name"] = $params['VoiceName'];
+	} else {
+		$payloadArray->Voice["Name"] = $this->voiceName; 
+	}
+	if($params['VoiceRate']){
+		$payloadArray->Parameters["Rate"] = $params['VoiceRate'];
+ 	} else {
+		$payloadArray->Parameters["Rate"] = $this->parametersRate;
+	}	
 
 	$obj = json_encode($payloadArray);
         $canonicalizedGetRequest = $this->getCanonicalRequest("CreateSpeech", $obj);
@@ -120,11 +131,25 @@ class IvonaClient
 
     }
 
-    public function getSave($text)
+    public function getSave($text, $params = null)
     {
-
+	if($params['Language']){ 
+		$lang = $params['Language'];
+	} else {
+		$lang = $this->voiceLanguage;
+	}
+	if($params['VoiceName']){ 
+		$name = $params['VoiceName'];
+	} else {
+		$name = $this->voiceName; 
+	}
+	if($params['VoiceRate']){
+		$rate = $params['VoiceRate'];
+ 	} else {
+		$rate = $this->parametersRate;
+	}	
 //	$content = $this->get($text);
-	$uniqueString = $text . '_' . $this->outputFormatCodec . '_' . $this->outputFormatSampleRate . '_' . $this->voiceName . '_' . $this->voiceLanguage . '_' . $this->parametersRate;
+	$uniqueString = $text . '_' . $this->outputFormatCodec . '_' . $this->outputFormatSampleRate . '_' . $name . '_' . $lang . '_' . $rate;
 	$this->debug(__METHOD__ . ' Unique string of TTS is: '.$uniqueString);
 	if($this->useCache == TRUE){
 		if ($cached = $this->checkIfCached($uniqueString)){
@@ -132,7 +157,7 @@ class IvonaClient
 			return $cached;
 		}	
 	} 
-	$content = $this->get($text);
+	$content = $this->get($text, $params);
 	return $this->save($content, $uniqueString);
 
     }
@@ -155,9 +180,12 @@ class IvonaClient
  		$info = curl_getinfo($ch2);
  		$this->debug(__METHOD__.' Took ' . $info['total_time'] . ' seconds to send a request to ' . $info['url'] . " Response Code: ".$info['http_code']);
 	} else {
-		$this->debug(__METHOD__ . ' CURL returned ERROR:'. curl_error($ch2));
+		$this->debug(__METHOD__ . ' CURL returned ERROR:'. curl_error($ch2) . "Response: ". $response);
 	}
-
+	if($info['http_code'] !=200){
+		$this->debug(__METHOD__ . ' CURL returned ERROR:'. curl_error($ch2) . "Response: ". $response);
+		return false;
+	}
 	return $response;
 
     }
@@ -226,20 +254,22 @@ class IvonaClient
     private function checkIfCached($string)
     {
 	$fileName = $this->getFileName($string); 
-        $savePath = $fileName{0} . '/' . $fileName{1} . '/' . $fileName{2};
-        $dbPath = $fileName{0} . '/' . $fileName{1} . '/' . $fileName{2} . '/' . $fileName;
+        $savePath = $this->CacheDir . '/'.$fileName{0} . '/' . $fileName{1} . '/' . $fileName{2};
+        $dbPath = $this->CacheDir . '/'.$fileName{0} . '/' . $fileName{1} . '/' . $fileName{2} . '/' . $fileName;
 	if (file_exists($dbPath))
 	{
+		$this->debug(__METHOD__ . " File $dbPath is there! ");
 		return $dbPath;
 	}
-	return 0;
+	$this->debug(__METHOD__ . " File $fileName not there!");
+	return FALSE;
     }
 
     private function save($resource, $string)
     {
 	$fileName = $this->getFileName($string); 
-        $savePath = $fileName{0} . '/' . $fileName{1} . '/' . $fileName{2};
-        $dbPath = $fileName{0} . '/' . $fileName{1} . '/' . $fileName{2} . '/' . $fileName;
+        $savePath = $this->CacheDir . '/'.$fileName{0} . '/' . $fileName{1} . '/' . $fileName{2};
+        $dbPath = $this->CacheDir . '/'.$fileName{0} . '/' . $fileName{1} . '/' . $fileName{2} . '/' . $fileName;
 
 	
 
