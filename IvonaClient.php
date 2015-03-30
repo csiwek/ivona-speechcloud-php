@@ -9,6 +9,7 @@ class IvonaClient
     const   IVONA_ACCESS_KEY = "PUT_YOUR_ACCESS_KEY_HERE";
     const   IVONA_SECRET_KEY = "PUT_YOUR_SECRET_HERE";
 
+
     public $string;
 
     public $longDate;
@@ -148,6 +149,7 @@ class IvonaClient
  	} else {
 		$rate = $this->parametersRate;
 	}	
+	$this->debug(__METHOD__ . ' Input params are: '. print_r($params,true));
 //	$content = $this->get($text);
 	$uniqueString = $text . '_' . $this->outputFormatCodec . '_' . $this->outputFormatSampleRate . '_' . $name . '_' . $lang . '_' . $rate;
 	$this->debug(__METHOD__ . ' Unique string of TTS is: '.$uniqueString);
@@ -157,9 +159,11 @@ class IvonaClient
 			return $cached;
 		}	
 	} 
-	$content = $this->get($text, $params);
-	return $this->save($content, $uniqueString);
-
+	if ($content = $this->get($text, $params)){
+		return $this->save($content, $uniqueString);
+	} 
+	$this->debug(__METHOD__ . ' Failed to get content of '.$uniqueString);
+	return 0;
     }
 	
 
