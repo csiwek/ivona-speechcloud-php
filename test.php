@@ -1,14 +1,13 @@
+#!/usr/bin/php
 <?php
 
+require 'IvonaClient.php';
+$ivona = new IvonaClient();
 
-$a  = '{
-    "Voice" : {
-        "Name" : "string",
-        "Language" : "string",
-        "Gender" : "string"
-    }
-}';
+$voices = $ivona->ListVoices('en-GB');
+echo print_r($voices);
 
-$aa = json_decode ($a);
+$voices_all = $ivona->ListVoices();
+echo print_r($voices_all);
 
-echo print_r($aa);
+?>
